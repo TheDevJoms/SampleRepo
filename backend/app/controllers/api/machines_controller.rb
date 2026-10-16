@@ -1,0 +1,43 @@
+module Api
+  class MachinesController < ApplicationController
+    def index
+      render json: Machine.order(created_at: :desc)
+    end
+
+    def create
+      machine = Machine.new(machine_params)
+
+      if machine.save
+        render json: machine, status: :created
+      else
+        render_json_error(machine.errors.full_messages.to_sentence, :unprocessable_entity)
+      end
+    end
+
+    def update
+      machine = Machine.find(params[:id])
+
+      if machine.update(machine_params)
+        render json: machine
+      else
+        render_json_error(machine.errors.full_messages.to_sentence, :unprocessable_entity)
+      end
+    rescue ActiveRecord::RecordNotFound
+      render_json_error("Machine not found", :not_found)
+    end
+
+    def destroy
+      machine = Machine.find(params[:id])
+      machine.destroy
+      head :no_content
+    rescue ActiveRecord::RecordNotFound
+      render_json_error("Machine not found", :not_found)
+    end
+
+    private
+
+    def machine_params
+      params.permit(:name, :serial_number, :model, :location, :status)
+    end
+  end
+end
