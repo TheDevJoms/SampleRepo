@@ -1,13 +1,18 @@
 .login-shell {
   min-height: 100vh;
-  display: flex;
   width: 100%;
+  display: block;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.login-shell .row {
+  min-height: 100vh;
+  --bs-gutter-x: 0;
+  --bs-gutter-y: 0;
 }
 
 .login-panel,
 .brand-panel {
-  width: 50%;
   min-height: 100vh;
   display: flex;
   align-items: center;
