@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import './DashboardPage.css';
 import { api } from '../services/api';
+import { LOADING_DELAY_MS } from '../constants/loading';
 
 const defaultSupplyForm = {
   name: '',
   quantity: 0,
   unit: 'pieces',
   reorder_level: 5,
+  date_received: new Date().toISOString().split('T')[0],
   status: 'active',
 };
 
@@ -25,7 +27,7 @@ const defaultUserForm = {
   status: 'active',
 };
 
-function DashboardPage({ currentUser, onLogout }) {
+function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dashboard, setDashboard] = useState({
@@ -50,8 +52,20 @@ function DashboardPage({ currentUser, onLogout }) {
   const [machineStatusFilter, setMachineStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const refreshAll = async () => {
+    setIsLoading(true);
+    setError('');
+
     try {
       const [dashboardData, userData, supplyData, machineData] = await Promise.all([
         api.getDashboard(),
@@ -64,6 +78,7 @@ function DashboardPage({ currentUser, onLogout }) {
       setUsers(userData);
       setSupplies(supplyData);
       setMachines(machineData);
+      await new Promise((resolve) => setTimeout(resolve, LOADING_DELAY_MS));
     } catch (refreshError) {
       setError(refreshError.message || 'Unable to load inventory data.');
     } finally {
@@ -200,6 +215,8 @@ function DashboardPage({ currentUser, onLogout }) {
   };
 
   const isAdmin = currentUser?.role === 'admin';
+  const currentRoleLabel = isAdmin ? 'Admin' : 'Staff';
+  const canManageRecords = isAdmin;
   const lowStockSupplies = (supplies || []).filter((item) => item.status === 'low_stock' || Number(item.quantity) <= Number(item.reorder_level || 0));
   const filteredSupplies = (supplies || []).filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(supplySearch.toLowerCase());
@@ -218,21 +235,47 @@ function DashboardPage({ currentUser, onLogout }) {
     { label: 'Total Machines', value: dashboard.machines || machines.length, accent: 'amber' },
   ];
 
+  const supplyHealthData = [
+    { label: 'Active', value: (supplies || []).filter((item) => item.status === 'active').length, color: '#22c55e' },
+    { label: 'Low stock', value: (supplies || []).filter((item) => item.status === 'low_stock').length, color: '#f59e0b' },
+    { label: 'Discontinued', value: (supplies || []).filter((item) => item.status === 'discontinued').length, color: '#ef4444' },
+  ];
+
+  const machineHealthData = [
+    { label: 'Operational', value: (machines || []).filter((item) => item.status === 'operational').length, color: '#3b82f6' },
+    { label: 'Maintenance', value: (machines || []).filter((item) => item.status === 'maintenance').length, color: '#f59e0b' },
+    { label: 'Retired', value: (machines || []).filter((item) => item.status === 'retired').length, color: '#ef4444' },
+  ];
+
   const navItems = [
-    { key: 'overview', label: 'Overview', icon: '⌂' },
-    { key: 'users', label: 'Users', icon: '👤' },
-    { key: 'supplies', label: 'Supplies', icon: '📦' },
-    { key: 'machines', label: 'Machines', icon: '⚙️' },
+    { key: 'overview', label: 'Overview', icon: 'bi bi-grid-1x2-fill' },
+    { key: 'users', label: 'Users', icon: 'bi bi-people-fill' },
+    { key: 'supplies', label: 'Supplies', icon: 'bi bi-box-seam' },
+    { key: 'machines', label: 'Machines', icon: 'bi bi-gear-wide-connected' },
   ];
 
   return (
     <div className="dashboard-shell">
+      {isLoggingOut && (
+        <div className="dashboard-loading-overlay logout-overlay" aria-live="polite" aria-label="Logging out">
+          <div className="page-loader-symbol">
+            <span>P</span>
+          </div>
+          <p>Logging out...</p>
+        </div>
+      )}
+
       <aside className={`sidebar ${sidebarOpen ? 'expanded' : 'collapsed'}`}>
         <div className="sidebar-header">
           <button type="button" className="burger-button btn btn-link text-white p-0" onClick={() => setSidebarOpen((current) => !current)}>
             ☰
           </button>
-          {sidebarOpen && <span className="brand-name">Ops Suite</span>}
+          {sidebarOpen && (
+            <div className="brand-block">
+              <span className="brand-mark-mini">P</span>
+              <span className="brand-name">Polyprime</span>
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav" aria-label="Sidebar navigation">
@@ -243,14 +286,14 @@ function DashboardPage({ currentUser, onLogout }) {
               className={`nav-item ${activeSection === item.key ? 'active' : ''}`}
               onClick={() => setActiveSection(item.key)}
             >
-              <span className="nav-icon" aria-label={`${item.label} icon`}>{item.icon}</span>
+              <span className={`nav-icon ${item.icon}`} aria-label={`${item.label} icon`} />
               {sidebarOpen && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
 
-        <button type="button" className="sidebar-logout btn btn-outline-light btn-sm" onClick={onLogout}>
-          {sidebarOpen ? 'Logout' : '⎋'}
+        <button type="button" className="sidebar-logout btn btn-outline-light btn-sm" onClick={onLogout} disabled={isLoggingOut}>
+          {sidebarOpen ? (isLoggingOut ? 'Logging out...' : 'Logout') : '⎋'}
         </button>
       </aside>
 
@@ -261,19 +304,46 @@ function DashboardPage({ currentUser, onLogout }) {
             <h1>{activeSection === 'overview' ? 'Inventory Dashboard' : `${activeSection.charAt(0).toUpperCase()}${activeSection.slice(1)}`}</h1>
           </div>
           <div className="header-actions d-flex gap-2">
-            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={refreshAll}>
+            <span className={`role-badge ${isAdmin ? 'admin' : 'staff'}`}>{currentRoleLabel}</span>
+            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={refreshAll} disabled={isLoggingOut}>
               Refresh
             </button>
-            <button type="button" className="primary-button btn btn-primary" onClick={onLogout}>
-              Logout
+            <button type="button" className="primary-button btn btn-primary" onClick={onLogout} disabled={isLoggingOut}>
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </button>
           </div>
         </header>
 
+        <div className="dashboard-main-header">
+          <div className="main-header-branding">
+            <div className="brand-mark">PP</div>
+            <div>
+              <p className="main-header-kicker">Polyprime</p>
+              <h2>Inventory Management System</h2>
+            </div>
+          </div>
+          <div className="main-header-meta">
+            <div className="header-time-block">
+              <span className="time-label">Today</span>
+              <strong>{currentTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+              <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div className="user-pill">
+              <span className={`role-badge small ${isAdmin ? 'admin' : 'staff'}`}>{currentRoleLabel}</span>
+              <span className="user-label">{currentUser?.username || 'User'}</span>
+            </div>
+          </div>
+        </div>
+
         {error && <div className="dashboard-error">{error}</div>}
 
         {isLoading ? (
-          <p className="loading-text">Loading inventory data...</p>
+          <div className="dashboard-loading-overlay" aria-live="polite" aria-label="Loading inventory data">
+            <div className="page-loader-symbol">
+              <span>P</span>
+            </div>
+            <p>Loading inventory data...</p>
+          </div>
         ) : (
           <>
             {lowStockSupplies.length > 0 && (
@@ -294,6 +364,52 @@ function DashboardPage({ currentUser, onLogout }) {
                   ))}
                 </section>
 
+                <section className="overview-panels">
+                  <div className="panel chart-panel">
+                    <h2>Supply health</h2>
+                    <div className="chart-list">
+                      {supplyHealthData.map((item) => {
+                        const max = Math.max(...supplyHealthData.map((entry) => entry.value), 1);
+                        const width = (item.value / max) * 100;
+
+                        return (
+                          <div className="chart-row" key={item.label}>
+                            <div className="chart-meta">
+                              <span>{item.label}</span>
+                              <strong>{item.value}</strong>
+                            </div>
+                            <div className="chart-track">
+                              <div className="chart-fill" style={{ width: `${width}%`, background: item.color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="panel chart-panel">
+                    <h2>Machine availability</h2>
+                    <div className="chart-list">
+                      {machineHealthData.map((item) => {
+                        const max = Math.max(...machineHealthData.map((entry) => entry.value), 1);
+                        const width = (item.value / max) * 100;
+
+                        return (
+                          <div className="chart-row" key={item.label}>
+                            <div className="chart-meta">
+                              <span>{item.label}</span>
+                              <strong>{item.value}</strong>
+                            </div>
+                            <div className="chart-track">
+                              <div className="chart-fill" style={{ width: `${width}%`, background: item.color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+
                 <section className="content-grid">
                   <div className="panel">
                     <h2>Low stock supplies</h2>
@@ -305,7 +421,7 @@ function DashboardPage({ currentUser, onLogout }) {
                       </div>
 
                       {(supplies || []).map((item) => (
-                        <div key={item.id} className="list-row">
+                        <div key={item.uid || item.id} className="list-row">
                           <span>{item.name}</span>
                           <span>{item.quantity}</span>
                           <span className={`status-badge ${item.status || 'active'}`}>{item.status || 'active'}</span>
@@ -324,7 +440,7 @@ function DashboardPage({ currentUser, onLogout }) {
                       </div>
 
                       {(machines || []).map((machine) => (
-                        <div key={machine.id} className="list-row">
+                        <div key={machine.uid || machine.id} className="list-row">
                           <span>{machine.name}</span>
                           <span>{machine.model}</span>
                           <span className={`status-badge ${machine.status || 'operational'}`}>{machine.status || 'operational'}</span>
@@ -339,9 +455,18 @@ function DashboardPage({ currentUser, onLogout }) {
             {activeSection === 'users' && (
               <section className="resource-panel">
                 <div className="panel resource-form-panel">
-                  <h2>{editingUserId ? 'Edit user' : 'Add new user'}</h2>
-                  {!isAdmin && <p className="access-note">Only administrators can manage users.</p>}
-                  <form className="resource-form row g-3" onSubmit={handleUserSubmit}>
+                  {!canManageRecords ? (
+                    <>
+                      <h2>View users</h2>
+                      <p className="access-note">Staff members can view all user details here, but editing and deletion are restricted to administrators.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-section-header">
+                        <span className="section-kicker">Users</span>
+                        <h2>{editingUserId ? 'Edit user' : 'Add new user'}</h2>
+                      </div>
+                      <form className="resource-form row g-3 user-form" onSubmit={handleUserSubmit}>
                     <div className="col-md-6">
                       <input
                         className="form-control"
@@ -386,19 +511,24 @@ function DashboardPage({ currentUser, onLogout }) {
                         <option value="suspended">Suspended</option>
                       </select>
                     </div>
-                    <div className="col-12 form-actions d-flex gap-2">
-                      <button type="submit" className="primary-button btn btn-primary" disabled={!isAdmin}>
-                        {editingUserId ? 'Save user' : 'Create user'}
-                      </button>
-                      {editingUserId && (
-                        <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetUserForm}>Cancel</button>
-                      )}
-                    </div>
-                  </form>
+                        <div className="col-12 form-actions d-flex gap-2">
+                          <button type="submit" className="primary-button btn btn-primary" disabled={!isAdmin}>
+                            {editingUserId ? 'Save user' : 'Create user'}
+                          </button>
+                          {editingUserId && (
+                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetUserForm}>Cancel</button>
+                          )}
+                        </div>
+                      </form>
+                    </>
+                  )}
                 </div>
 
                 <div className="panel resource-list-panel">
-                  <h2>Users</h2>
+                  <div className="form-section-header">
+                    <span className="section-kicker">Users</span>
+                    <h2>Records</h2>
+                  </div>
                   <div className="list-table">
                     <div className="list-row header-row user-row">
                       <span>Username</span>
@@ -408,12 +538,12 @@ function DashboardPage({ currentUser, onLogout }) {
                     </div>
 
                     {(users || []).map((user) => (
-                      <div key={user.id} className="list-row user-row">
+                      <div key={user.uid || user.id} className="list-row user-row">
                         <span>{user.username}</span>
                         <span>{user.role}</span>
                         <span className={`status-badge ${user.status}`}>{user.status}</span>
                         <div className="row-actions">
-                          {isAdmin && (
+                          {canManageRecords && (
                             <>
                               <button
                                 type="button"
@@ -425,7 +555,7 @@ function DashboardPage({ currentUser, onLogout }) {
                                     role: user.role,
                                     status: user.status,
                                   });
-                                  setEditingUserId(user.id);
+                                  setEditingUserId(user.uid || user.id);
                                 }}
                               >
                                 Edit
@@ -433,7 +563,7 @@ function DashboardPage({ currentUser, onLogout }) {
                               <button
                                 type="button"
                                 className="delete-button small-button"
-                                onClick={() => handleDeleteUser(user.id)}
+                                onClick={() => handleDeleteUser(user.uid || user.id)}
                               >
                                 Delete
                               </button>
@@ -450,8 +580,18 @@ function DashboardPage({ currentUser, onLogout }) {
             {activeSection === 'supplies' && (
               <section className="resource-panel">
                 <div className="panel resource-form-panel">
-                  <h2>{editingSupplyId ? 'Edit supply' : 'Add new supply'}</h2>
-                  <form className="resource-form row g-3" onSubmit={handleSupplySubmit}>
+                  {!canManageRecords ? (
+                    <>
+                      <h2>View supplies</h2>
+                      <p className="access-note">Staff members can view all supply details here, but editing and deletion are restricted to administrators.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-section-header">
+                        <span className="section-kicker">Supplies</span>
+                        <h2>{editingSupplyId ? 'Edit supply' : 'Add new supply'}</h2>
+                      </div>
+                      <form className="resource-form row g-3 supply-form" onSubmit={handleSupplySubmit}>
                     <div className="col-md-6">
                       <input
                         className="form-control"
@@ -500,6 +640,16 @@ function DashboardPage({ currentUser, onLogout }) {
                       />
                     </div>
                     <div className="col-md-6">
+                      <input
+                        className="form-control"
+                        name="date_received"
+                        type="date"
+                        value={supplyForm.date_received || ''}
+                        onChange={(event) => setSupplyForm((current) => ({ ...current, date_received: event.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-6">
                       <select
                         className="form-select"
                         name="status"
@@ -511,17 +661,22 @@ function DashboardPage({ currentUser, onLogout }) {
                         <option value="discontinued">Discontinued</option>
                       </select>
                     </div>
-                    <div className="col-12 form-actions d-flex gap-2">
-                      <button type="submit" className="primary-button btn btn-primary">{editingSupplyId ? 'Save supply' : 'Create supply'}</button>
-                      {editingSupplyId && (
-                        <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetSupplyForm}>Cancel</button>
-                      )}
-                    </div>
-                  </form>
+                        <div className="col-12 form-actions d-flex gap-2">
+                          <button type="submit" className="primary-button btn btn-primary">{editingSupplyId ? 'Save supply' : 'Create supply'}</button>
+                          {editingSupplyId && (
+                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetSupplyForm}>Cancel</button>
+                          )}
+                        </div>
+                      </form>
+                    </>
+                  )}
                 </div>
 
                 <div className="panel resource-list-panel">
-                  <h2>Supplies</h2>
+                  <div className="form-section-header">
+                    <span className="section-kicker">Supplies</span>
+                    <h2>Records</h2>
+                  </div>
                   <div className="filter-row">
                     <input
                       type="text"
@@ -541,18 +696,20 @@ function DashboardPage({ currentUser, onLogout }) {
                       <span>Name</span>
                       <span>Qty</span>
                       <span>Unit</span>
+                      <span>Date received</span>
                       <span>Status</span>
                       <span>Actions</span>
                     </div>
 
                     {(filteredSupplies || []).map((item) => (
-                      <div key={item.id} className="list-row supply-row">
+                      <div key={item.uid || item.id} className="list-row supply-row">
                         <span>{item.name}</span>
                         <span>{item.quantity}</span>
                         <span>{item.unit}</span>
+                        <span>{item.date_received ? new Date(item.date_received).toLocaleDateString() : '—'}</span>
                         <span className={`status-badge ${item.status || 'active'}`}>{item.status || 'active'}</span>
                         <div className="row-actions">
-                          {isAdmin && (
+                          {canManageRecords && (
                             <>
                               <button
                                 type="button"
@@ -563,14 +720,15 @@ function DashboardPage({ currentUser, onLogout }) {
                                     quantity: item.quantity,
                                     unit: item.unit,
                                     reorder_level: item.reorder_level,
+                                    date_received: item.date_received || new Date().toISOString().split('T')[0],
                                     status: item.status || 'active',
                                   });
-                                  setEditingSupplyId(item.id);
+                                  setEditingSupplyId(item.uid || item.id);
                                 }}
                               >
                                 Edit
                               </button>
-                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteSupply(item.id)}>
+                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteSupply(item.uid || item.id)}>
                                 Delete
                               </button>
                             </>
@@ -586,8 +744,18 @@ function DashboardPage({ currentUser, onLogout }) {
             {activeSection === 'machines' && (
               <section className="resource-panel">
                 <div className="panel resource-form-panel">
-                  <h2>{editingMachineId ? 'Edit machine' : 'Add new machine'}</h2>
-                  <form className="resource-form row g-3" onSubmit={handleMachineSubmit}>
+                  {!canManageRecords ? (
+                    <>
+                      <h2>View machines</h2>
+                      <p className="access-note">Staff members can view all machine details here, but editing and deletion are restricted to administrators.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-section-header">
+                        <span className="section-kicker">Machines</span>
+                        <h2>{editingMachineId ? 'Edit machine' : 'Add new machine'}</h2>
+                      </div>
+                      <form className="resource-form row g-3 machine-form" onSubmit={handleMachineSubmit}>
                     <div className="col-md-6">
                       <input
                         className="form-control"
@@ -640,17 +808,22 @@ function DashboardPage({ currentUser, onLogout }) {
                         <option value="retired">Retired</option>
                       </select>
                     </div>
-                    <div className="col-12 form-actions d-flex gap-2">
-                      <button type="submit" className="primary-button btn btn-primary">{editingMachineId ? 'Save machine' : 'Create machine'}</button>
-                      {editingMachineId && (
-                        <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetMachineForm}>Cancel</button>
-                      )}
-                    </div>
-                  </form>
+                        <div className="col-12 form-actions d-flex gap-2">
+                          <button type="submit" className="primary-button btn btn-primary">{editingMachineId ? 'Save machine' : 'Create machine'}</button>
+                          {editingMachineId && (
+                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetMachineForm}>Cancel</button>
+                          )}
+                        </div>
+                      </form>
+                    </>
+                  )}
                 </div>
 
                 <div className="panel resource-list-panel">
-                  <h2>Machines</h2>
+                  <div className="form-section-header">
+                    <span className="section-kicker">Machines</span>
+                    <h2>Records</h2>
+                  </div>
                   <div className="filter-row">
                     <input
                       type="text"
@@ -675,13 +848,13 @@ function DashboardPage({ currentUser, onLogout }) {
                     </div>
 
                     {(filteredMachines || []).map((machine) => (
-                      <div key={machine.id} className="list-row machine-row">
+                      <div key={machine.uid || machine.id} className="list-row machine-row">
                         <span>{machine.name}</span>
                         <span>{machine.model}</span>
                         <span>{machine.location}</span>
                         <span className={`status-badge ${machine.status || 'operational'}`}>{machine.status || 'operational'}</span>
                         <div className="row-actions">
-                          {isAdmin && (
+                          {canManageRecords && (
                             <>
                               <button
                                 type="button"
@@ -694,12 +867,12 @@ function DashboardPage({ currentUser, onLogout }) {
                                     location: machine.location,
                                     status: machine.status || 'operational',
                                   });
-                                  setEditingMachineId(machine.id);
+                                  setEditingMachineId(machine.uid || machine.id);
                                 }}
                               >
                                 Edit
                               </button>
-                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteMachine(machine.id)}>
+                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteMachine(machine.uid || machine.id)}>
                                 Delete
                               </button>
                             </>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import LoginPage from './components/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import { api } from './services/api';
+import { LOADING_DELAY_MS } from './constants/loading';
 
 const AUTH_KEY = 'inventory_auth_user';
 
@@ -26,6 +27,7 @@ function App() {
 
     try {
       const response = await api.login({ username, password });
+      await new Promise((resolve) => setTimeout(resolve, LOADING_DELAY_MS));
       const user = response.user;
       setCurrentUser(user);
       setIsAuthenticated(true);
@@ -37,10 +39,17 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setCurrentUser(null);
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    setIsSubmitting(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, LOADING_DELAY_MS));
+    } finally {
+      localStorage.removeItem(AUTH_KEY);
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+      setIsSubmitting(false);
+    }
   };
 
   if (!isAuthenticated) {
@@ -53,7 +62,7 @@ function App() {
     );
   }
 
-  return <DashboardPage currentUser={currentUser} onLogout={handleLogout} />;
+  return <DashboardPage currentUser={currentUser} onLogout={handleLogout} isLoggingOut={isSubmitting} />;
 }
 
 export default App;

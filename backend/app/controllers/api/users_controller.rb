@@ -15,7 +15,7 @@ module Api
     end
 
     def update
-      user = User.find(params[:id])
+      user = User.find_by!(uid: params[:id])
       permitted_params = user_params
 
       if permitted_params[:password].blank?
@@ -32,7 +32,7 @@ module Api
     end
 
     def destroy
-      user = User.find(params[:id])
+      user = User.find_by!(uid: params[:id])
       user.destroy
       head :no_content
     rescue ActiveRecord::RecordNotFound
@@ -42,7 +42,15 @@ module Api
     private
 
     def user_params
-      params.permit(:username, :password, :role, :status)
+      permitted = params.permit(:username, :password, :role, :status)
+      nested = params[:user].presence || {}
+
+      if nested.respond_to?(:permit)
+        nested_permitted = nested.permit(:username, :password, :role, :status)
+        permitted = permitted.to_h.merge(nested_permitted.to_h)
+      end
+
+      permitted
     end
   end
 end

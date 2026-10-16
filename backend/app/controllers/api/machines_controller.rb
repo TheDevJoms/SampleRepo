@@ -15,7 +15,7 @@ module Api
     end
 
     def update
-      machine = Machine.find(params[:id])
+      machine = Machine.find_by!(uid: params[:id])
 
       if machine.update(machine_params)
         render json: machine
@@ -27,7 +27,7 @@ module Api
     end
 
     def destroy
-      machine = Machine.find(params[:id])
+      machine = Machine.find_by!(uid: params[:id])
       machine.destroy
       head :no_content
     rescue ActiveRecord::RecordNotFound
@@ -37,7 +37,15 @@ module Api
     private
 
     def machine_params
-      params.permit(:name, :serial_number, :model, :location, :status)
+      permitted = params.permit(:name, :serial_number, :model, :location, :status)
+      nested = params[:machine].presence || {}
+
+      if nested.respond_to?(:permit)
+        nested_permitted = nested.permit(:name, :serial_number, :model, :location, :status)
+        permitted = permitted.to_h.merge(nested_permitted.to_h)
+      end
+
+      permitted
     end
   end
 end
