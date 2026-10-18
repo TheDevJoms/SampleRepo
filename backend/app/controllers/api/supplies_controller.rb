@@ -1,5 +1,7 @@
 module Api
   class SuppliesController < ApplicationController
+    before_action :require_admin!, only: [:create, :update, :destroy]
+
     def index
       render json: Supply.order(created_at: :desc)
     end

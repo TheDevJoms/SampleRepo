@@ -48,8 +48,11 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [supplySearch, setSupplySearch] = useState('');
   const [machineSearch, setMachineSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
   const [supplyStatusFilter, setSupplyStatusFilter] = useState('all');
   const [machineStatusFilter, setMachineStatusFilter] = useState('all');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userStatusFilter, setUserStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -228,6 +231,28 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
     const matchesStatus = machineStatusFilter === 'all' || machine.status === machineStatusFilter;
     return matchesSearch && matchesStatus;
   });
+  const filteredUsers = (users || []).filter((user) => {
+    const matchesSearch = user.username.toLowerCase().includes(userSearch.toLowerCase());
+    const matchesRole = userRoleFilter === 'all' || user.role === userRoleFilter;
+    const matchesStatus = userStatusFilter === 'all' || user.status === userStatusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const clearSupplyFilters = () => {
+    setSupplySearch('');
+    setSupplyStatusFilter('all');
+  };
+
+  const clearMachineFilters = () => {
+    setMachineSearch('');
+    setMachineStatusFilter('all');
+  };
+
+  const clearUserFilters = () => {
+    setUserSearch('');
+    setUserRoleFilter('all');
+    setUserStatusFilter('all');
+  };
 
   const summaryCards = [
     { label: 'Total Users', value: dashboard.users || users.length, accent: 'blue' },
@@ -467,8 +492,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <h2>{editingUserId ? 'Edit user' : 'Add new user'}</h2>
                       </div>
                       <form className="resource-form row g-3 user-form" onSubmit={handleUserSubmit}>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="user-username">
+                        <span className="label-text">Username</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="user-username"
                         className="form-control"
                         name="username"
                         value={userForm.username}
@@ -477,8 +507,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="user-password">
+                        <span className="label-text">Password</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="user-password"
                         className="form-control"
                         name="password"
                         type="password"
@@ -488,8 +523,12 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required={!editingUserId}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="user-role">
+                        <span className="label-text">Role</span>
+                      </label>
                       <select
+                        id="user-role"
                         className="form-select"
                         name="role"
                         value={userForm.role}
@@ -499,8 +538,12 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <option value="admin">Admin</option>
                       </select>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="user-status">
+                        <span className="label-text">Status</span>
+                      </label>
                       <select
+                        id="user-status"
                         className="form-select"
                         name="status"
                         value={userForm.status}
@@ -529,6 +572,35 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     <span className="section-kicker">Users</span>
                     <h2>Records</h2>
                   </div>
+                  <div className="filter-row">
+                    <div className="filter-field">
+                      <label htmlFor="user-search">Search</label>
+                      <input
+                        id="user-search"
+                        type="text"
+                        value={userSearch}
+                        onChange={(event) => setUserSearch(event.target.value)}
+                        placeholder="Search users"
+                      />
+                    </div>
+                    <div className="filter-field">
+                      <label htmlFor="user-role-filter">Role</label>
+                      <select id="user-role-filter" value={userRoleFilter} onChange={(event) => setUserRoleFilter(event.target.value)}>
+                        <option value="all">All roles</option>
+                        <option value="admin">Admin</option>
+                        <option value="staff">Staff</option>
+                      </select>
+                    </div>
+                    <div className="filter-field">
+                      <label htmlFor="user-status-filter">Status</label>
+                      <select id="user-status-filter" value={userStatusFilter} onChange={(event) => setUserStatusFilter(event.target.value)}>
+                        <option value="all">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                  </div>
                   <div className="list-table">
                     <div className="list-row header-row user-row">
                       <span>Username</span>
@@ -537,41 +609,49 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                       <span>Actions</span>
                     </div>
 
-                    {(users || []).map((user) => (
-                      <div key={user.uid || user.id} className="list-row user-row">
-                        <span>{user.username}</span>
-                        <span>{user.role}</span>
-                        <span className={`status-badge ${user.status}`}>{user.status}</span>
-                        <div className="row-actions">
-                          {canManageRecords && (
-                            <>
-                              <button
-                                type="button"
-                                className="secondary-button small-button"
-                                onClick={() => {
-                                  setUserForm({
-                                    username: user.username,
-                                    password: '',
-                                    role: user.role,
-                                    status: user.status,
-                                  });
-                                  setEditingUserId(user.uid || user.id);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="delete-button small-button"
-                                onClick={() => handleDeleteUser(user.uid || user.id)}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                    {(filteredUsers || []).length === 0 ? (
+                      <div className="empty-list-state">
+                        <strong>No users match the current filters.</strong>
+                        <span>Try a different search or clear the filters.</span>
+                        <button type="button" className="secondary-button small-button" onClick={clearUserFilters}>Clear filters</button>
                       </div>
-                    ))}
+                    ) : (
+                      (filteredUsers || []).map((user) => (
+                        <div key={user.uid || user.id} className="list-row user-row">
+                          <span>{user.username}</span>
+                          <span>{user.role}</span>
+                          <span className={`status-badge ${user.status}`}>{user.status}</span>
+                          <div className="row-actions">
+                            {canManageRecords && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="secondary-button small-button"
+                                  onClick={() => {
+                                    setUserForm({
+                                      username: user.username,
+                                      password: '',
+                                      role: user.role,
+                                      status: user.status,
+                                    });
+                                    setEditingUserId(user.uid || user.id);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="delete-button small-button"
+                                  onClick={() => handleDeleteUser(user.uid || user.id)}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </section>
@@ -592,8 +672,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <h2>{editingSupplyId ? 'Edit supply' : 'Add new supply'}</h2>
                       </div>
                       <form className="resource-form row g-3 supply-form" onSubmit={handleSupplySubmit}>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="supply-name">
+                        <span className="label-text">Supply name</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="supply-name"
                         className="form-control"
                         name="name"
                         value={supplyForm.name}
@@ -602,8 +687,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-3">
+                    <div className="col-md-3 form-field-group">
+                      <label htmlFor="supply-quantity">
+                        <span className="label-text">Quantity</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="supply-quantity"
                         className="form-control"
                         name="quantity"
                         type="number"
@@ -613,8 +703,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-3">
+                    <div className="col-md-3 form-field-group">
+                      <label htmlFor="supply-unit">
+                        <span className="label-text">Unit</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <select
+                        id="supply-unit"
                         className="form-select"
                         name="unit"
                         value={supplyForm.unit}
@@ -628,8 +723,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <option value="rolls">Rolls</option>
                       </select>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="supply-reorder">
+                        <span className="label-text">Reorder level</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="supply-reorder"
                         className="form-control"
                         name="reorder_level"
                         type="number"
@@ -639,8 +739,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="supply-date">
+                        <span className="label-text">Date received</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="supply-date"
                         className="form-control"
                         name="date_received"
                         type="date"
@@ -649,8 +754,12 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="supply-status">
+                        <span className="label-text">Status</span>
+                      </label>
                       <select
+                        id="supply-status"
                         className="form-select"
                         name="status"
                         value={supplyForm.status}
@@ -678,18 +787,25 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     <h2>Records</h2>
                   </div>
                   <div className="filter-row">
-                    <input
-                      type="text"
-                      value={supplySearch}
-                      onChange={(event) => setSupplySearch(event.target.value)}
-                      placeholder="Search supplies"
-                    />
-                    <select value={supplyStatusFilter} onChange={(event) => setSupplyStatusFilter(event.target.value)}>
-                      <option value="all">All statuses</option>
-                      <option value="active">Active</option>
-                      <option value="low_stock">Low stock</option>
-                      <option value="discontinued">Discontinued</option>
-                    </select>
+                    <div className="filter-field">
+                      <label htmlFor="supply-search">Search</label>
+                      <input
+                        id="supply-search"
+                        type="text"
+                        value={supplySearch}
+                        onChange={(event) => setSupplySearch(event.target.value)}
+                        placeholder="Search supplies"
+                      />
+                    </div>
+                    <div className="filter-field">
+                      <label htmlFor="supply-status-filter">Status</label>
+                      <select id="supply-status-filter" value={supplyStatusFilter} onChange={(event) => setSupplyStatusFilter(event.target.value)}>
+                        <option value="all">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="low_stock">Low stock</option>
+                        <option value="discontinued">Discontinued</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="list-table">
                     <div className="list-row header-row supply-row">
@@ -701,41 +817,49 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                       <span>Actions</span>
                     </div>
 
-                    {(filteredSupplies || []).map((item) => (
-                      <div key={item.uid || item.id} className="list-row supply-row">
-                        <span>{item.name}</span>
-                        <span>{item.quantity}</span>
-                        <span>{item.unit}</span>
-                        <span>{item.date_received ? new Date(item.date_received).toLocaleDateString() : '—'}</span>
-                        <span className={`status-badge ${item.status || 'active'}`}>{item.status || 'active'}</span>
-                        <div className="row-actions">
-                          {canManageRecords && (
-                            <>
-                              <button
-                                type="button"
-                                className="secondary-button small-button"
-                                onClick={() => {
-                                  setSupplyForm({
-                                    name: item.name,
-                                    quantity: item.quantity,
-                                    unit: item.unit,
-                                    reorder_level: item.reorder_level,
-                                    date_received: item.date_received || new Date().toISOString().split('T')[0],
-                                    status: item.status || 'active',
-                                  });
-                                  setEditingSupplyId(item.uid || item.id);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteSupply(item.uid || item.id)}>
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                    {(filteredSupplies || []).length === 0 ? (
+                      <div className="empty-list-state">
+                        <strong>No supplies match the current filters.</strong>
+                        <span>Try a different search or clear the filters.</span>
+                        <button type="button" className="secondary-button small-button" onClick={clearSupplyFilters}>Clear filters</button>
                       </div>
-                    ))}
+                    ) : (
+                      (filteredSupplies || []).map((item) => (
+                        <div key={item.uid || item.id} className="list-row supply-row">
+                          <span>{item.name}</span>
+                          <span>{item.quantity}</span>
+                          <span>{item.unit}</span>
+                          <span>{item.date_received ? new Date(item.date_received).toLocaleDateString() : '—'}</span>
+                          <span className={`status-badge ${item.status || 'active'}`}>{item.status || 'active'}</span>
+                          <div className="row-actions">
+                            {canManageRecords && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="secondary-button small-button"
+                                  onClick={() => {
+                                    setSupplyForm({
+                                      name: item.name,
+                                      quantity: item.quantity,
+                                      unit: item.unit,
+                                      reorder_level: item.reorder_level,
+                                      date_received: item.date_received || new Date().toISOString().split('T')[0],
+                                      status: item.status || 'active',
+                                    });
+                                    setEditingSupplyId(item.uid || item.id);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button type="button" className="delete-button small-button" onClick={() => handleDeleteSupply(item.uid || item.id)}>
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </section>
@@ -756,8 +880,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <h2>{editingMachineId ? 'Edit machine' : 'Add new machine'}</h2>
                       </div>
                       <form className="resource-form row g-3 machine-form" onSubmit={handleMachineSubmit}>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="machine-name">
+                        <span className="label-text">Machine name</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="machine-name"
                         className="form-control"
                         name="name"
                         value={machineForm.name}
@@ -766,8 +895,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="machine-serial">
+                        <span className="label-text">Serial number</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="machine-serial"
                         className="form-control"
                         name="serial_number"
                         value={machineForm.serial_number}
@@ -776,8 +910,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="machine-model">
+                        <span className="label-text">Model</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="machine-model"
                         className="form-control"
                         name="model"
                         value={machineForm.model}
@@ -786,8 +925,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="machine-location">
+                        <span className="label-text">Location</span>
+                        <span className="required-mark">*</span>
+                      </label>
                       <input
+                        id="machine-location"
                         className="form-control"
                         name="location"
                         value={machineForm.location}
@@ -796,8 +940,12 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         required
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-6 form-field-group">
+                      <label htmlFor="machine-status">
+                        <span className="label-text">Status</span>
+                      </label>
                       <select
+                        id="machine-status"
                         className="form-select"
                         name="status"
                         value={machineForm.status}
@@ -825,18 +973,25 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     <h2>Records</h2>
                   </div>
                   <div className="filter-row">
-                    <input
-                      type="text"
-                      value={machineSearch}
-                      onChange={(event) => setMachineSearch(event.target.value)}
-                      placeholder="Search machines"
-                    />
-                    <select value={machineStatusFilter} onChange={(event) => setMachineStatusFilter(event.target.value)}>
-                      <option value="all">All statuses</option>
-                      <option value="operational">Operational</option>
-                      <option value="maintenance">Maintenance</option>
-                      <option value="retired">Retired</option>
-                    </select>
+                    <div className="filter-field">
+                      <label htmlFor="machine-search">Search</label>
+                      <input
+                        id="machine-search"
+                        type="text"
+                        value={machineSearch}
+                        onChange={(event) => setMachineSearch(event.target.value)}
+                        placeholder="Search machines"
+                      />
+                    </div>
+                    <div className="filter-field">
+                      <label htmlFor="machine-status-filter">Status</label>
+                      <select id="machine-status-filter" value={machineStatusFilter} onChange={(event) => setMachineStatusFilter(event.target.value)}>
+                        <option value="all">All statuses</option>
+                        <option value="operational">Operational</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="retired">Retired</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="list-table">
                     <div className="list-row header-row machine-row">
@@ -847,39 +1002,47 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                       <span>Actions</span>
                     </div>
 
-                    {(filteredMachines || []).map((machine) => (
-                      <div key={machine.uid || machine.id} className="list-row machine-row">
-                        <span>{machine.name}</span>
-                        <span>{machine.model}</span>
-                        <span>{machine.location}</span>
-                        <span className={`status-badge ${machine.status || 'operational'}`}>{machine.status || 'operational'}</span>
-                        <div className="row-actions">
-                          {canManageRecords && (
-                            <>
-                              <button
-                                type="button"
-                                className="secondary-button small-button"
-                                onClick={() => {
-                                  setMachineForm({
-                                    name: machine.name,
-                                    serial_number: machine.serial_number,
-                                    model: machine.model,
-                                    location: machine.location,
-                                    status: machine.status || 'operational',
-                                  });
-                                  setEditingMachineId(machine.uid || machine.id);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button type="button" className="delete-button small-button" onClick={() => handleDeleteMachine(machine.uid || machine.id)}>
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                    {(filteredMachines || []).length === 0 ? (
+                      <div className="empty-list-state">
+                        <strong>No machines match the current filters.</strong>
+                        <span>Try a different search or clear the filters.</span>
+                        <button type="button" className="secondary-button small-button" onClick={clearMachineFilters}>Clear filters</button>
                       </div>
-                    ))}
+                    ) : (
+                      (filteredMachines || []).map((machine) => (
+                        <div key={machine.uid || machine.id} className="list-row machine-row">
+                          <span>{machine.name}</span>
+                          <span>{machine.model}</span>
+                          <span>{machine.location}</span>
+                          <span className={`status-badge ${machine.status || 'operational'}`}>{machine.status || 'operational'}</span>
+                          <div className="row-actions">
+                            {canManageRecords && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="secondary-button small-button"
+                                  onClick={() => {
+                                    setMachineForm({
+                                      name: machine.name,
+                                      serial_number: machine.serial_number,
+                                      model: machine.model,
+                                      location: machine.location,
+                                      status: machine.status || 'operational',
+                                    });
+                                    setEditingMachineId(machine.uid || machine.id);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button type="button" className="delete-button small-button" onClick={() => handleDeleteMachine(machine.uid || machine.id)}>
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </section>

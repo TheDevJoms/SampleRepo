@@ -1,5 +1,7 @@
 module Api
   class UsersController < ApplicationController
+    before_action :require_admin!, only: [:create, :update, :destroy]
+
     def index
       render json: User.order(created_at: :desc)
     end
