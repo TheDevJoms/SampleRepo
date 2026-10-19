@@ -29,6 +29,10 @@ const defaultUserForm = {
 
 function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const [activeSection, setActiveSection] = useState('overview');
+  const [isLowStockAlertDismissed, setIsLowStockAlertDismissed] = useState(false);
+  const [isSupplyModalOpen, setIsSupplyModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dashboard, setDashboard] = useState({
     users: 0,
@@ -96,16 +100,37 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const resetSupplyForm = () => {
     setSupplyForm(defaultSupplyForm);
     setEditingSupplyId(null);
+    setIsSupplyModalOpen(false);
+  };
+
+  const openNewSupplyModal = () => {
+    setSupplyForm(defaultSupplyForm);
+    setEditingSupplyId(null);
+    setIsSupplyModalOpen(true);
   };
 
   const resetMachineForm = () => {
     setMachineForm(defaultMachineForm);
     setEditingMachineId(null);
+    setIsMachineModalOpen(false);
+  };
+
+  const openNewMachineModal = () => {
+    setMachineForm(defaultMachineForm);
+    setEditingMachineId(null);
+    setIsMachineModalOpen(true);
   };
 
   const resetUserForm = () => {
     setUserForm(defaultUserForm);
     setEditingUserId(null);
+    setIsUserModalOpen(false);
+  };
+
+  const openNewUserModal = () => {
+    setUserForm(defaultUserForm);
+    setEditingUserId(null);
+    setIsUserModalOpen(true);
   };
 
   const handleSupplySubmit = async (event) => {
@@ -220,7 +245,7 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const isAdmin = currentUser?.role === 'admin';
   const currentRoleLabel = isAdmin ? 'Admin' : 'Staff';
   const canManageRecords = isAdmin;
-  const lowStockSupplies = (supplies || []).filter((item) => item.status === 'low_stock' || Number(item.quantity) <= Number(item.reorder_level || 0));
+  const lowStockSupplies = (supplies || []).filter((item) => item.status === 'low_stock');
   const filteredSupplies = (supplies || []).filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(supplySearch.toLowerCase());
     const matchesStatus = supplyStatusFilter === 'all' || item.status === supplyStatusFilter;
@@ -241,6 +266,13 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
   const clearSupplyFilters = () => {
     setSupplySearch('');
     setSupplyStatusFilter('all');
+  };
+
+  const showLowStockSupplies = () => {
+    setActiveSection('supplies');
+    setSupplySearch('');
+    setSupplyStatusFilter('low_stock');
+    setIsLowStockAlertDismissed(true);
   };
 
   const clearMachineFilters = () => {
@@ -323,42 +355,37 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
       </aside>
 
       <main className="main-panel">
-        <header className="dashboard-header d-flex justify-content-between align-items-center">
-          <div>
-            <p className="dashboard-kicker">Operations overview</p>
-            <h1>{activeSection === 'overview' ? 'Inventory Dashboard' : `${activeSection.charAt(0).toUpperCase()}${activeSection.slice(1)}`}</h1>
-          </div>
-          <div className="header-actions d-flex gap-2">
-            <span className={`role-badge ${isAdmin ? 'admin' : 'staff'}`}>{currentRoleLabel}</span>
-            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={refreshAll} disabled={isLoggingOut}>
-              Refresh
-            </button>
-            <button type="button" className="primary-button btn btn-primary" onClick={onLogout} disabled={isLoggingOut}>
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
-            </button>
-          </div>
-        </header>
-
-        <div className="dashboard-main-header">
-          <div className="main-header-branding">
-            <div className="brand-mark">PP</div>
-            <div>
-              <p className="main-header-kicker">Polyprime</p>
-              <h2>Inventory Management System</h2>
+        <header className="dashboard-header">
+          <div className="dashboard-heading">
+            <div className="brand-mark" aria-hidden="true">PP</div>
+            <div className="dashboard-title-block">
+              <p className="dashboard-kicker">Polyprime / Inventory</p>
+              <h1>{activeSection === 'overview' ? 'Inventory Dashboard' : `${activeSection.charAt(0).toUpperCase()}${activeSection.slice(1)}`}</h1>
             </div>
           </div>
-          <div className="main-header-meta">
+          <div className="dashboard-header-tools">
             <div className="header-time-block">
               <span className="time-label">Today</span>
               <strong>{currentTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
-              <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="current-time">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div className="user-pill">
-              <span className={`role-badge small ${isAdmin ? 'admin' : 'staff'}`}>{currentRoleLabel}</span>
-              <span className="user-label">{currentUser?.username || 'User'}</span>
+              <span className="user-avatar" aria-hidden="true">{(currentUser?.username || 'U').slice(0, 1).toUpperCase()}</span>
+              <span className="user-details">
+                <span className="user-label">{currentUser?.username || 'User'}</span>
+                <span className={`user-role ${isAdmin ? 'admin' : 'staff'}`}>{currentRoleLabel}</span>
+              </span>
+            </div>
+            <div className="header-actions">
+              <button type="button" className="secondary-button btn btn-outline-secondary" onClick={refreshAll} disabled={isLoggingOut}>
+                Refresh
+              </button>
+              <button type="button" className="primary-button btn btn-primary" onClick={onLogout} disabled={isLoggingOut}>
+                {isLoggingOut ? 'Logging out...' : 'Logout'}
+              </button>
             </div>
           </div>
-        </div>
+        </header>
 
         {error && <div className="dashboard-error">{error}</div>}
 
@@ -371,9 +398,12 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
           </div>
         ) : (
           <>
-            {lowStockSupplies.length > 0 && (
-              <div className="alert-banner">
-                {lowStockSupplies.length} item(s) need attention: low stock or reorder threshold reached.
+            {lowStockSupplies.length > 0 && !isLowStockAlertDismissed && (
+              <div className="alert-banner" role="status">
+                <span>{lowStockSupplies.length} item(s) marked as low stock.</span>
+                <button type="button" className="alert-action" onClick={showLowStockSupplies}>
+                  View low-stock supplies
+                </button>
               </div>
             )}
 
@@ -445,7 +475,7 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                         <span>Status</span>
                       </div>
 
-                      {(supplies || []).map((item) => (
+                      {lowStockSupplies.map((item) => (
                         <div key={item.uid || item.id} className="list-row">
                           <span>{item.name}</span>
                           <span>{item.quantity}</span>
@@ -478,100 +508,18 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
             )}
 
             {activeSection === 'users' && (
-              <section className="resource-panel">
-                <div className="panel resource-form-panel">
-                  {!canManageRecords ? (
-                    <>
-                      <h2>View users</h2>
-                      <p className="access-note">Staff members can view all user details here, but editing and deletion are restricted to administrators.</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="form-section-header">
-                        <span className="section-kicker">Users</span>
-                        <h2>{editingUserId ? 'Edit user' : 'Add new user'}</h2>
-                      </div>
-                      <form className="resource-form row g-3 user-form" onSubmit={handleUserSubmit}>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="user-username">
-                        <span className="label-text">Username</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="user-username"
-                        className="form-control"
-                        name="username"
-                        value={userForm.username}
-                        onChange={(event) => setUserForm((current) => ({ ...current, username: event.target.value }))}
-                        placeholder="Username"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="user-password">
-                        <span className="label-text">Password</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="user-password"
-                        className="form-control"
-                        name="password"
-                        type="password"
-                        value={userForm.password}
-                        onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))}
-                        placeholder={editingUserId ? 'New password (optional)' : 'Password'}
-                        required={!editingUserId}
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="user-role">
-                        <span className="label-text">Role</span>
-                      </label>
-                      <select
-                        id="user-role"
-                        className="form-select"
-                        name="role"
-                        value={userForm.role}
-                        onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}
-                      >
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="user-status">
-                        <span className="label-text">Status</span>
-                      </label>
-                      <select
-                        id="user-status"
-                        className="form-select"
-                        name="status"
-                        value={userForm.status}
-                        onChange={(event) => setUserForm((current) => ({ ...current, status: event.target.value }))}
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
-                      </select>
-                    </div>
-                        <div className="col-12 form-actions d-flex gap-2">
-                          <button type="submit" className="primary-button btn btn-primary" disabled={!isAdmin}>
-                            {editingUserId ? 'Save user' : 'Create user'}
-                          </button>
-                          {editingUserId && (
-                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetUserForm}>Cancel</button>
-                          )}
-                        </div>
-                      </form>
-                    </>
-                  )}
-                </div>
-
+              <section className="resource-panel entity-page">
                 <div className="panel resource-list-panel">
-                  <div className="form-section-header">
-                    <span className="section-kicker">Users</span>
-                    <h2>Records</h2>
+                  <div className="entity-list-header">
+                    <div className="form-section-header">
+                      <span className="section-kicker">Users</span>
+                      <h2>Records</h2>
+                    </div>
+                    {canManageRecords && (
+                      <button type="button" className="primary-button" onClick={openNewUserModal}>Add user</button>
+                    )}
                   </div>
+                  {!canManageRecords && <p className="access-note">Staff members can view user details, but management actions are restricted to administrators.</p>}
                   <div className="filter-row">
                     <div className="filter-field">
                       <label htmlFor="user-search">Search</label>
@@ -635,6 +583,7 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                                       status: user.status,
                                     });
                                     setEditingUserId(user.uid || user.id);
+                                    setIsUserModalOpen(true);
                                   }}
                                 >
                                   Edit
@@ -654,137 +603,72 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     )}
                   </div>
                 </div>
+                {isUserModalOpen && canManageRecords && (
+                  <div
+                    className="entity-modal-backdrop"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) resetUserForm();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') resetUserForm();
+                    }}
+                  >
+                    <section className="entity-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+                      <div className="entity-modal-header">
+                        <div>
+                          <span className="section-kicker">Users</span>
+                          <h2 id="user-modal-title">{editingUserId ? 'Edit user' : 'Add new user'}</h2>
+                        </div>
+                        <button type="button" className="secondary-button small-button" onClick={resetUserForm}>Close</button>
+                      </div>
+                      <form className="resource-form entity-modal-form" onSubmit={handleUserSubmit}>
+                        <div className="form-field-group">
+                          <label htmlFor="user-username"><span className="label-text">Username</span><span className="required-mark">*</span></label>
+                          <input id="user-username" className="form-control" name="username" value={userForm.username} onChange={(event) => setUserForm((current) => ({ ...current, username: event.target.value }))} placeholder="Username" required autoFocus />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="user-password"><span className="label-text">Password</span>{!editingUserId && <span className="required-mark">*</span>}</label>
+                          <input id="user-password" className="form-control" name="password" type="password" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} placeholder={editingUserId ? 'New password (optional)' : 'Password'} required={!editingUserId} />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="user-role">Role</label>
+                          <select id="user-role" className="form-select" name="role" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="user-status">Status</label>
+                          <select id="user-status" className="form-select" name="status" value={userForm.status} onChange={(event) => setUserForm((current) => ({ ...current, status: event.target.value }))}>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                          </select>
+                        </div>
+                        <div className="form-actions">
+                          <button type="button" className="secondary-button" onClick={resetUserForm}>Cancel</button>
+                          <button type="submit" className="primary-button">{editingUserId ? 'Save changes' : 'Create user'}</button>
+                        </div>
+                      </form>
+                    </section>
+                  </div>
+                )}
               </section>
             )}
 
             {activeSection === 'supplies' && (
-              <section className="resource-panel">
-                <div className="panel resource-form-panel">
-                  {!canManageRecords ? (
-                    <>
-                      <h2>View supplies</h2>
-                      <p className="access-note">Staff members can view all supply details here, but editing and deletion are restricted to administrators.</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="form-section-header">
-                        <span className="section-kicker">Supplies</span>
-                        <h2>{editingSupplyId ? 'Edit supply' : 'Add new supply'}</h2>
-                      </div>
-                      <form className="resource-form row g-3 supply-form" onSubmit={handleSupplySubmit}>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="supply-name">
-                        <span className="label-text">Supply name</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="supply-name"
-                        className="form-control"
-                        name="name"
-                        value={supplyForm.name}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, name: event.target.value }))}
-                        placeholder="Supply name"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-3 form-field-group">
-                      <label htmlFor="supply-quantity">
-                        <span className="label-text">Quantity</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="supply-quantity"
-                        className="form-control"
-                        name="quantity"
-                        type="number"
-                        value={supplyForm.quantity}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, quantity: event.target.value }))}
-                        placeholder="Quantity"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-3 form-field-group">
-                      <label htmlFor="supply-unit">
-                        <span className="label-text">Unit</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <select
-                        id="supply-unit"
-                        className="form-select"
-                        name="unit"
-                        value={supplyForm.unit}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, unit: event.target.value }))}
-                        required
-                      >
-                        <option value="pieces">Pieces</option>
-                        <option value="boxes">Boxes</option>
-                        <option value="liters">Liters</option>
-                        <option value="kg">Kilograms</option>
-                        <option value="rolls">Rolls</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="supply-reorder">
-                        <span className="label-text">Reorder level</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="supply-reorder"
-                        className="form-control"
-                        name="reorder_level"
-                        type="number"
-                        value={supplyForm.reorder_level}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, reorder_level: event.target.value }))}
-                        placeholder="Reorder level"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="supply-date">
-                        <span className="label-text">Date received</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="supply-date"
-                        className="form-control"
-                        name="date_received"
-                        type="date"
-                        value={supplyForm.date_received || ''}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, date_received: event.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="supply-status">
-                        <span className="label-text">Status</span>
-                      </label>
-                      <select
-                        id="supply-status"
-                        className="form-select"
-                        name="status"
-                        value={supplyForm.status}
-                        onChange={(event) => setSupplyForm((current) => ({ ...current, status: event.target.value }))}
-                      >
-                        <option value="active">Active</option>
-                        <option value="low_stock">Low stock</option>
-                        <option value="discontinued">Discontinued</option>
-                      </select>
-                    </div>
-                        <div className="col-12 form-actions d-flex gap-2">
-                          <button type="submit" className="primary-button btn btn-primary">{editingSupplyId ? 'Save supply' : 'Create supply'}</button>
-                          {editingSupplyId && (
-                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetSupplyForm}>Cancel</button>
-                          )}
-                        </div>
-                      </form>
-                    </>
-                  )}
-                </div>
-
+              <section className="resource-panel supplies-page">
                 <div className="panel resource-list-panel">
-                  <div className="form-section-header">
-                    <span className="section-kicker">Supplies</span>
-                    <h2>Records</h2>
+                  <div className="supplies-list-header">
+                    <div className="form-section-header">
+                      <span className="section-kicker">Supplies</span>
+                      <h2>Records</h2>
+                    </div>
+                    {canManageRecords && (
+                      <button type="button" className="primary-button" onClick={openNewSupplyModal}>
+                        Add supply
+                      </button>
+                    )}
                   </div>
                   <div className="filter-row">
                     <div className="filter-field">
@@ -802,11 +686,16 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                       <select id="supply-status-filter" value={supplyStatusFilter} onChange={(event) => setSupplyStatusFilter(event.target.value)}>
                         <option value="all">All statuses</option>
                         <option value="active">Active</option>
-                        <option value="low_stock">Low stock</option>
+                        <option value="low_stock">Low stock ({lowStockSupplies.length})</option>
                         <option value="discontinued">Discontinued</option>
                       </select>
                     </div>
                   </div>
+                  {supplyStatusFilter === 'low_stock' && (
+                    <div className="filter-summary" role="status">
+                      Showing {filteredSupplies.length} of {lowStockSupplies.length} low-stock {lowStockSupplies.length === 1 ? 'supply' : 'supplies'}.
+                    </div>
+                  )}
                   <div className="list-table">
                     <div className="list-row header-row supply-row">
                       <span>Name</span>
@@ -847,6 +736,7 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                                       status: item.status || 'active',
                                     });
                                     setEditingSupplyId(item.uid || item.id);
+                                    setIsSupplyModalOpen(true);
                                   }}
                                 >
                                   Edit
@@ -862,116 +752,85 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     )}
                   </div>
                 </div>
+                {isSupplyModalOpen && canManageRecords && (
+                  <div
+                    className="supply-modal-backdrop"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) resetSupplyForm();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') resetSupplyForm();
+                    }}
+                  >
+                    <section className="supply-modal" role="dialog" aria-modal="true" aria-labelledby="supply-modal-title">
+                      <div className="supply-modal-header">
+                        <div>
+                          <span className="section-kicker">Supplies</span>
+                          <h2 id="supply-modal-title">{editingSupplyId ? 'Edit supply' : 'Add new supply'}</h2>
+                        </div>
+                        <button type="button" className="secondary-button small-button" onClick={resetSupplyForm}>
+                          Close
+                        </button>
+                      </div>
+                      <form className="resource-form supply-modal-form" onSubmit={handleSupplySubmit}>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-name"><span className="label-text">Supply name</span><span className="required-mark">*</span></label>
+                          <input id="supply-name" className="form-control" name="name" value={supplyForm.name} onChange={(event) => setSupplyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Supply name" required autoFocus />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-quantity"><span className="label-text">Quantity</span><span className="required-mark">*</span></label>
+                          <input id="supply-quantity" className="form-control" name="quantity" type="number" min="0" value={supplyForm.quantity} onChange={(event) => setSupplyForm((current) => ({ ...current, quantity: event.target.value }))} placeholder="Quantity" required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-unit"><span className="label-text">Unit</span><span className="required-mark">*</span></label>
+                          <select id="supply-unit" className="form-select" name="unit" value={supplyForm.unit} onChange={(event) => setSupplyForm((current) => ({ ...current, unit: event.target.value }))} required>
+                            <option value="pieces">Pieces</option>
+                            <option value="boxes">Boxes</option>
+                            <option value="liters">Liters</option>
+                            <option value="kg">Kilograms</option>
+                            <option value="rolls">Rolls</option>
+                          </select>
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-reorder"><span className="label-text">Reorder level</span><span className="required-mark">*</span></label>
+                          <input id="supply-reorder" className="form-control" name="reorder_level" type="number" min="0" value={supplyForm.reorder_level} onChange={(event) => setSupplyForm((current) => ({ ...current, reorder_level: event.target.value }))} placeholder="Reorder level" required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-date"><span className="label-text">Date received</span><span className="required-mark">*</span></label>
+                          <input id="supply-date" className="form-control" name="date_received" type="date" value={supplyForm.date_received || ''} onChange={(event) => setSupplyForm((current) => ({ ...current, date_received: event.target.value }))} required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="supply-status"><span className="label-text">Status</span></label>
+                          <select id="supply-status" className="form-select" name="status" value={supplyForm.status} onChange={(event) => setSupplyForm((current) => ({ ...current, status: event.target.value }))}>
+                            <option value="active">Active</option>
+                            <option value="low_stock">Low stock</option>
+                            <option value="discontinued">Discontinued</option>
+                          </select>
+                        </div>
+                        <div className="form-actions">
+                          <button type="button" className="secondary-button" onClick={resetSupplyForm}>Cancel</button>
+                          <button type="submit" className="primary-button">{editingSupplyId ? 'Save changes' : 'Create supply'}</button>
+                        </div>
+                      </form>
+                    </section>
+                  </div>
+                )}
               </section>
             )}
 
             {activeSection === 'machines' && (
-              <section className="resource-panel">
-                <div className="panel resource-form-panel">
-                  {!canManageRecords ? (
-                    <>
-                      <h2>View machines</h2>
-                      <p className="access-note">Staff members can view all machine details here, but editing and deletion are restricted to administrators.</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="form-section-header">
-                        <span className="section-kicker">Machines</span>
-                        <h2>{editingMachineId ? 'Edit machine' : 'Add new machine'}</h2>
-                      </div>
-                      <form className="resource-form row g-3 machine-form" onSubmit={handleMachineSubmit}>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="machine-name">
-                        <span className="label-text">Machine name</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="machine-name"
-                        className="form-control"
-                        name="name"
-                        value={machineForm.name}
-                        onChange={(event) => setMachineForm((current) => ({ ...current, name: event.target.value }))}
-                        placeholder="Machine name"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="machine-serial">
-                        <span className="label-text">Serial number</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="machine-serial"
-                        className="form-control"
-                        name="serial_number"
-                        value={machineForm.serial_number}
-                        onChange={(event) => setMachineForm((current) => ({ ...current, serial_number: event.target.value }))}
-                        placeholder="Serial number"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="machine-model">
-                        <span className="label-text">Model</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="machine-model"
-                        className="form-control"
-                        name="model"
-                        value={machineForm.model}
-                        onChange={(event) => setMachineForm((current) => ({ ...current, model: event.target.value }))}
-                        placeholder="Model"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="machine-location">
-                        <span className="label-text">Location</span>
-                        <span className="required-mark">*</span>
-                      </label>
-                      <input
-                        id="machine-location"
-                        className="form-control"
-                        name="location"
-                        value={machineForm.location}
-                        onChange={(event) => setMachineForm((current) => ({ ...current, location: event.target.value }))}
-                        placeholder="Location"
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 form-field-group">
-                      <label htmlFor="machine-status">
-                        <span className="label-text">Status</span>
-                      </label>
-                      <select
-                        id="machine-status"
-                        className="form-select"
-                        name="status"
-                        value={machineForm.status}
-                        onChange={(event) => setMachineForm((current) => ({ ...current, status: event.target.value }))}
-                      >
-                        <option value="operational">Operational</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="retired">Retired</option>
-                      </select>
-                    </div>
-                        <div className="col-12 form-actions d-flex gap-2">
-                          <button type="submit" className="primary-button btn btn-primary">{editingMachineId ? 'Save machine' : 'Create machine'}</button>
-                          {editingMachineId && (
-                            <button type="button" className="secondary-button btn btn-outline-secondary" onClick={resetMachineForm}>Cancel</button>
-                          )}
-                        </div>
-                      </form>
-                    </>
-                  )}
-                </div>
-
+              <section className="resource-panel entity-page">
                 <div className="panel resource-list-panel">
-                  <div className="form-section-header">
-                    <span className="section-kicker">Machines</span>
-                    <h2>Records</h2>
+                  <div className="entity-list-header">
+                    <div className="form-section-header">
+                      <span className="section-kicker">Machines</span>
+                      <h2>Records</h2>
+                    </div>
+                    {canManageRecords && (
+                      <button type="button" className="primary-button" onClick={openNewMachineModal}>Add machine</button>
+                    )}
                   </div>
+                  {!canManageRecords && <p className="access-note">Staff members can view machine details, but management actions are restricted to administrators.</p>}
                   <div className="filter-row">
                     <div className="filter-field">
                       <label htmlFor="machine-search">Search</label>
@@ -1030,6 +889,7 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                                       status: machine.status || 'operational',
                                     });
                                     setEditingMachineId(machine.uid || machine.id);
+                                    setIsMachineModalOpen(true);
                                   }}
                                 >
                                   Edit
@@ -1045,6 +905,57 @@ function DashboardPage({ currentUser, onLogout, isLoggingOut = false }) {
                     )}
                   </div>
                 </div>
+                {isMachineModalOpen && canManageRecords && (
+                  <div
+                    className="entity-modal-backdrop"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) resetMachineForm();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') resetMachineForm();
+                    }}
+                  >
+                    <section className="entity-modal" role="dialog" aria-modal="true" aria-labelledby="machine-modal-title">
+                      <div className="entity-modal-header">
+                        <div>
+                          <span className="section-kicker">Machines</span>
+                          <h2 id="machine-modal-title">{editingMachineId ? 'Edit machine' : 'Add new machine'}</h2>
+                        </div>
+                        <button type="button" className="secondary-button small-button" onClick={resetMachineForm}>Close</button>
+                      </div>
+                      <form className="resource-form entity-modal-form" onSubmit={handleMachineSubmit}>
+                        <div className="form-field-group">
+                          <label htmlFor="machine-name"><span className="label-text">Machine name</span><span className="required-mark">*</span></label>
+                          <input id="machine-name" className="form-control" name="name" value={machineForm.name} onChange={(event) => setMachineForm((current) => ({ ...current, name: event.target.value }))} placeholder="Machine name" required autoFocus />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="machine-serial"><span className="label-text">Serial number</span><span className="required-mark">*</span></label>
+                          <input id="machine-serial" className="form-control" name="serial_number" value={machineForm.serial_number} onChange={(event) => setMachineForm((current) => ({ ...current, serial_number: event.target.value }))} placeholder="Serial number" required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="machine-model"><span className="label-text">Model</span><span className="required-mark">*</span></label>
+                          <input id="machine-model" className="form-control" name="model" value={machineForm.model} onChange={(event) => setMachineForm((current) => ({ ...current, model: event.target.value }))} placeholder="Model" required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="machine-location"><span className="label-text">Location</span><span className="required-mark">*</span></label>
+                          <input id="machine-location" className="form-control" name="location" value={machineForm.location} onChange={(event) => setMachineForm((current) => ({ ...current, location: event.target.value }))} placeholder="Location" required />
+                        </div>
+                        <div className="form-field-group">
+                          <label htmlFor="machine-status">Status</label>
+                          <select id="machine-status" className="form-select" name="status" value={machineForm.status} onChange={(event) => setMachineForm((current) => ({ ...current, status: event.target.value }))}>
+                            <option value="operational">Operational</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="retired">Retired</option>
+                          </select>
+                        </div>
+                        <div className="form-actions">
+                          <button type="button" className="secondary-button" onClick={resetMachineForm}>Cancel</button>
+                          <button type="submit" className="primary-button">{editingMachineId ? 'Save changes' : 'Create machine'}</button>
+                        </div>
+                      </form>
+                    </section>
+                  </div>
+                )}
               </section>
             )}
           </>
